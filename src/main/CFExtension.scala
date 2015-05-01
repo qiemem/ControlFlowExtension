@@ -25,21 +25,35 @@ case object Case extends DefaultReporter {
 }
 
 case object Else extends DefaultReporter {
+  val trueTask = new ReporterTask {
+    def report(c: Context, args: Array[AnyRef]): AnyRef = Boolean.box(true)
+  }
+
   override def getSyntax = reporterSyntax(Array(CommandTaskType), ListType)
   override def report(args: Array[Argument], context: Context) =
-    LogoList(true: java.lang.Boolean, args(0).getCommandTask)
+    LogoList(trueTask, args(0).getCommandTask)
 
 }
 
 case object Cond extends DefaultCommand {
   override def getSyntax = commandSyntax(Array(ListType | RepeatableType))
   override def perform(args: Array[Argument], context: Context): Unit = {
-    args.map(_.getList.toList).find { _.head match {
-      case b: java.lang.Boolean => b
-      case t: ReporterTask => Caster.toBoolean(t.report(context, Array.empty[AnyRef]))
-      case x => throw new ExtensionException("Expected a reporter task or boolean but go " + x)
-    }}.foreach {
-      l => Caster.toCommand(l.last).perform(context, Array.empty[AnyRef])
+    args.map(_.getList.toList).find {
+      l => Caster.toBoolean(Caster.toReporter(l.head).report(context, Array()))
+    }.foreach {
+      l => Caster.toCommand(l.last).perform(context, Array())
+    }
+  }
+}
+
+case object Match extends DefaultCommand {
+  override def getSyntax = commandSyntax(Array(WildcardType, ListType | RepeatableType))
+  override def perform(args: Array[Argument], context: Context): Unit = {
+    val value = args(0).get
+    args.tail.map(_.getList.toList).find {
+      l => Caster.toBoolean(Caster.toReporter(l.head).report(context, Array(value)))
+    }.foreach {
+      l => Caster.toCommand(l.last).perform(context, Array())
     }
   }
 }
@@ -48,7 +62,8 @@ class CFExtension extends DefaultClassManager {
   override def load(primManager: PrimitiveManager) = {
     val add = primManager.addPrimitive _
     add("case", Case)
-    add("cond", Cond)
     add("else", Else)
+    add("cond", Cond)
+    add("match", Match)
   }
 }
