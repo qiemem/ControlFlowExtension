@@ -1,5 +1,6 @@
 package org.nlogo.extensions.cf
 
+import org.nlogo.api.ReporterTask
 import org.nlogo.api._
 import org.nlogo.api.Syntax._
 
@@ -42,7 +43,16 @@ case object Else extends DefaultReporter {
   override def getSyntax = reporterSyntax(Array(CommandTaskType | ReporterTaskType), ListType)
   override def report(args: Array[Argument], context: Context) =
     LogoList(trueTask, args(0).get)
+}
 
+case object Equals extends DefaultReporter {
+  override def getSyntax = reporterSyntax(Array(WildcardType, CommandTaskType | ReporterTaskType), ListType)
+  override def report(args: Array[Argument], context: Context) = {
+    val target = args(0).get
+    LogoList(new ReporterTask {
+      def report(c: Context, args: Array[AnyRef]) = Boolean.box(target equals args(0))
+    }, args(1).get)
+  }
 }
 
 case object Cond extends DefaultCommand with Runner {
@@ -74,6 +84,7 @@ class CFExtension extends DefaultClassManager {
     val add = primManager.addPrimitive _
     add("case", Case)
     add("else", Else)
+    add("=", Equals)
     add("cond", Cond)
     add("cond-value", CondValue)
     add("match", Match)
