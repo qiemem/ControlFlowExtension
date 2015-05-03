@@ -55,6 +55,16 @@ case object Equals extends DefaultReporter {
   }
 }
 
+case object Is extends DefaultReporter with Runner {
+  override def getSyntax =
+    reporterSyntax(Array(ReporterTaskType, WildcardType, CommandTaskType | ReporterTaskType), ListType)
+  override def report(isArgs: Array[Argument], context: Context) = {
+    LogoList(new ReporterTask {
+      def report(c: Context, args: Array[AnyRef]) = predicate(isArgs(0).getReporterTask, c, args(0), isArgs(1).get)
+    }, isArgs(2).get)
+  }
+}
+
 case object Cond extends DefaultCommand with Runner {
   override def getSyntax = commandSyntax(Array(ListType | RepeatableType))
   override def perform(args: Array[Argument], context: Context): Unit =
@@ -85,6 +95,7 @@ class CFExtension extends DefaultClassManager {
     add("case", Case)
     add("else", Else)
     add("=", Equals)
+    add("is", Is)
     add("cond", Cond)
     add("cond-value", CondValue)
     add("match", Match)
