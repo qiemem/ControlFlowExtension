@@ -89,6 +89,30 @@ case object MatchValue extends DefaultReporter with Runner {
     find(args.tail, context, args(0).get).map(t => reporter(t, context)).getOrElse(notFound)
 }
 
+case object Apply extends DefaultCommand {
+  override def getSyntax = commandSyntax(Array(CommandTaskType, ListType))
+  override def perform(args: Array[Argument], context: Context) =
+    args(0).getCommandTask.perform(context, args(1).getList.toArray)
+}
+
+case object ApplyValue extends DefaultReporter {
+  override def getSyntax = reporterSyntax(Array(ReporterTaskType, ListType), WildcardType)
+  override def report(args: Array[Argument], context: Context): AnyRef =
+    args(0).getReporterTask.report(context, args(1).getList.toArray)
+}
+
+case object Unpack extends DefaultCommand {
+  override def getSyntax = commandSyntax(Array(ListType, CommandTaskType))
+  override def perform(args: Array[Argument], context: Context) =
+    args(1).getCommandTask.perform(context, args(0).getList.toArray)
+}
+
+case object UnpackValue extends DefaultReporter {
+  override def getSyntax = reporterSyntax(Array(ListType, ReporterTaskType), WildcardType)
+  override def report(args: Array[Argument], context: Context): AnyRef =
+    args(1).getReporterTask.report(context, args(0).getList.toArray)
+}
+
 class CFExtension extends DefaultClassManager {
   override def load(primManager: PrimitiveManager) = {
     val add = primManager.addPrimitive _
@@ -100,5 +124,10 @@ class CFExtension extends DefaultClassManager {
     add("cond-value", CondValue)
     add("match", Match)
     add("match-value", MatchValue)
+
+    add("apply", Apply)
+    add("apply-value", ApplyValue)
+    add("unpack", Unpack)
+    add("unpack-value", UnpackValue)
   }
 }
