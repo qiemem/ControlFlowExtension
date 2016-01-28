@@ -1,4 +1,4 @@
-scalaVersion := "2.9.2"
+scalaVersion := "2.11.7"
 
 scalaSource in Compile := baseDirectory.value / "src" / "main"
 
@@ -14,16 +14,16 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-Xfatal-warnings",
 retrieveManaged := true
 
 libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo" % "5.2.0" from
-    "http://ccl.northwestern.edu/netlogo/5.2.0/NetLogo.jar"
+  "org.nlogo" % "NetLogo" % "6.0.0-PREVIEW" from
+    "https://s3.amazonaws.com/ccl-artifacts/NetLogo-6.0-constructionism-preview.jar"
 )
 
 libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo-tests" % "5.2.0" % "test" from
-    "http://ccl.northwestern.edu/netlogo/5.2.0/NetLogo-tests.jar",
-  "org.scalatest" %% "scalatest" % "1.8" % "test",
+  "org.nlogo" % "NetLogo-tests" % "6.0.0-PREVIEW" from
+    "https://s3.amazonaws.com/ccl-artifacts/NetLogo-6.0-constructionism-preview.jar",
+  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
   "org.picocontainer" % "picocontainer" % "2.13.6" % "test",
-  "asm" % "asm-all" % "3.3.1" % "test"
+  "org.ow2.asm" % "asm-all" % "5.0.3" % "test"
 )
 
 artifactName := { (_, _, _) => "cf.jar" }
