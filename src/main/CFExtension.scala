@@ -3,6 +3,7 @@ package org.nlogo.extensions.cf
 import org.nlogo.api.ReporterTask
 import org.nlogo.api._
 import org.nlogo.api.Syntax._
+import org.nlogo.nvm
 
 object Caster {
   type JBoolean = java.lang.Boolean
@@ -18,6 +19,13 @@ object Caster {
     else
       throw new ExtensionException(
         "Expected " + TypeNames.aName(typeNum) + " but got the " + TypeNames.name(x) + " " + x + " instead.")
+}
+
+class RepTask(ctx: Context, arity: Int, fn: (Context, Array[AnyRef]) => AnyRef)
+extends nvm.ReporterTask(null, new Array(arity), List(), Array()) {
+  val ws = ctx.asInstanceOf[nvm.ExtensionContext].workspace
+  override def report(ctx: Context, args: Array[AnyRef]): AnyRef = fn(ctx, args)
+  override def report(ctx: nvm.Context, args: Array[AnyRef]): AnyRef = report(new nvm.ExtensionContext(ws, ctx), args)
 }
 
 trait Runner {
@@ -37,23 +45,21 @@ case object Case extends DefaultReporter {
 }
 
 case object Else extends DefaultReporter {
-  val trueTask = new ReporterTask {
-    def report(c: Context, args: Array[AnyRef]): AnyRef = Boolean.box(true)
-  }
+  def trueTask(ctx: Context) = new RepTask(ctx, 0, (c, args) => Boolean.box(true))
 
   override def getSyntax = reporterSyntax(Array(CommandTaskType | ReporterTaskType), ListType)
-  override def report(args: Array[Argument], context: Context) =
-    LogoList(LogoList(trueTask, args(0).get))
+  override def report(args: Array[Argument], ctx: Context) =
+    LogoList(LogoList(trueTask(ctx), args(0).get))
 }
 
 case object CaseIs extends DefaultReporter with Runner {
   override def getSyntax =
     reporterSyntax(Array(ReporterTaskType, WildcardType, CommandTaskType | ReporterTaskType, ListType), ListType)
-  override def report(isArgs: Array[Argument], context: Context) = {
-    val pair = LogoList(new ReporterTask {
-      def report(c: Context, args: Array[AnyRef]) = predicate(isArgs(0).getReporterTask, c, args(0), isArgs(1).get)
-    }, isArgs(2).get)
-    isArgs(3).getList.fput(pair)
+  override def report(args: Array[Argument], ctx: Context) = {
+    args(3).getList fput LogoList(
+      new RepTask(ctx, 1, (c, xs) => predicate(args(0).getReporterTask, c, xs(0), args(1).get)),
+      args(2).get
+    )
   }
 }
 
@@ -76,7 +82,8 @@ case object Match extends DefaultCommand with Runner {
 }
 
 case object MatchValue extends DefaultReporter with Runner {
-  override def getSyntax = reporterSyntax(Array(WildcardType, ListType | RepeatableType), WildcardType)
+  override def getSyntax = reporterSyntax(WildcardType, Array(ListType), WildcardType,
+    precedence = NormalPrecedence + 2, isRightAssociative = false)
   override def report(args: Array[Argument], ctx: Context): AnyRef =
     find(args(1).getList, ctx, args(0).get).map(body => reporter(body, ctx)).getOrElse(notFound)
 }
@@ -110,12 +117,11 @@ class CFExtension extends DefaultClassManager {
     val add = primManager.addPrimitive _
     add("case", Case)
     add("else", Else)
-    add("=", Equals)
-    add("is", CaseIs)
-    add("cond", Cond)
-    add("cond-value", CondValue)
+    add("case-is", CaseIs)
+    add("when", Cond)
+    add("select", CondValue)
     add("match", Match)
-    add("match-value", MatchValue)
+    add("matching", MatchValue)
 
     add("apply", Apply)
     add("apply-value", ApplyValue)
