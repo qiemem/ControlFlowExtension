@@ -35,7 +35,12 @@ trait Runner {
   def command(task: AnyRef, context: Context, args: AnyRef*): Unit = toCommand(task).perform(context, args.toArray)
   def find(list: LogoList, context: Context, predArgs: AnyRef*): Option[AnyRef] =
     list.toVector.map(l => Caster.toList(l).toVector).find(l => predicate(l.head, context, predArgs: _*)).map(_.last)
-  def notFound = throw new ExtensionException("Needed at least one true condition, but all were false.")
+  def notFoundRep = throw new ExtensionException(
+    "No true condition found. If you wish default to a value instead of erroring, use `cf:else [ <default-value> ]`."
+  )
+  def notFoundCmd = throw new ExtensionException(
+    "No true condition found. If you wish to do nothing instead of erroring, use `cf:else []`."
+  )
 }
 
 case object Case extends DefaultReporter {
@@ -66,26 +71,26 @@ case object CaseIs extends DefaultReporter with Runner {
 case object Cond extends DefaultCommand with Runner {
   override def getSyntax = commandSyntax(Array(ListType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
-    find(args(0).getList, ctx).foreach(body => command(body, ctx))
+    command(find(args(0).getList, ctx).getOrElse(notFoundCmd), ctx)
 }
 
 case object CondValue extends DefaultReporter with Runner {
   override def getSyntax = reporterSyntax(Array(ListType), WildcardType)
   override def report(args: Array[Argument], ctx: Context) =
-    find(args(0).getList, ctx).map(body => reporter(body, ctx)).getOrElse(notFound)
+    reporter(find(args(0).getList, ctx).getOrElse(notFoundRep), ctx)
 }
 
 case object Match extends DefaultCommand with Runner {
   override def getSyntax = commandSyntax(Array(WildcardType, ListType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
-    find(args(1).getList, ctx, args(0).get).foreach(body => command(body, ctx))
+    command(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundCmd), ctx)
 }
 
 case object MatchValue extends DefaultReporter with Runner {
   override def getSyntax = reporterSyntax(WildcardType, Array(ListType), WildcardType,
     precedence = NormalPrecedence + 2, isRightAssociative = false)
   override def report(args: Array[Argument], ctx: Context): AnyRef =
-    find(args(1).getList, ctx, args(0).get).map(body => reporter(body, ctx)).getOrElse(notFound)
+    reporter(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundRep), ctx)
 }
 
 case object Apply extends DefaultCommand {
