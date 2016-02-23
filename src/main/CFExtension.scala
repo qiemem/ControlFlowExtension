@@ -22,7 +22,7 @@ object Caster {
 }
 
 class RepTask(ctx: Context, arity: Int, fn: (Context, Array[AnyRef]) => AnyRef)
-extends nvm.ReporterTask(null, new Array(arity), List(), Array()) {
+extends nvm.ReporterTask(null, Array.fill(arity){new Let}, List(), Array()) {
   val ws = ctx.asInstanceOf[nvm.ExtensionContext].workspace
   override def report(ctx: Context, args: Array[AnyRef]): AnyRef = fn(ctx, args)
   override def report(ctx: nvm.Context, args: Array[AnyRef]): AnyRef = report(new nvm.ExtensionContext(ws, ctx), args)
@@ -83,14 +83,14 @@ case object CondValue extends DefaultReporter with Runner {
 case object Match extends DefaultCommand with Runner {
   override def getSyntax = commandSyntax(Array(WildcardType, ListType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
-    command(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundCmd), ctx)
+    command(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundCmd), ctx, args(0).get)
 }
 
 case object MatchValue extends DefaultReporter with Runner {
   override def getSyntax = reporterSyntax(WildcardType, Array(ListType), WildcardType,
     precedence = NormalPrecedence + 2, isRightAssociative = false)
   override def report(args: Array[Argument], ctx: Context): AnyRef =
-    reporter(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundRep), ctx)
+    reporter(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundRep), ctx, args(0).get)
 }
 
 case object Apply extends DefaultCommand {
