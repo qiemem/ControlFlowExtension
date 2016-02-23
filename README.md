@@ -1,7 +1,7 @@
 CF-Extension
 ===
 
-This NetLogo extension adds somewhat experimental control-flow primitives. This extension is a place where we can try out new control-flow structures before possibly moving them into core NetLogo. In particular, the CF extension currently includes primitives that allow you to do things similar to `if`-`else if`-`else` chains you see in other languages, as well as thing similar to `switch`es in other languages. However, it does it in a more flexible way that many languages. A few quick examples to get you started:
+This NetLogo extension adds somewhat experimental control-flow primitives. This extension is a place where we can try out new control-flow structures before possibly moving them into core NetLogo. In particular, the CF extension currently includes primitives that allow you to do things similar to `if`-`else if`-`else` chains you see in other languages, as well as things similar to `switch`es in other languages. However, it does it in a more flexible way than many languages. A few quick examples to get you started:
 
 ```
 let x 5
@@ -45,7 +45,7 @@ let y 7
 let list-of-cases
 cf:case [ x > y ] [ print "x is greater than y!" ]
 cf:case [ x < y ] [ print "x is less than y!" ]
-cf:else           [ print "x is the same as y!" ])
+cf:else           [ print "x is the same as y!" ]
 ```
 
 ## Primitives
@@ -57,7 +57,7 @@ cf:else           [ print "x is the same as y!" ])
 `cf:when` runs the command task from the first case in the list with a true condition. For instance:
 
 ```
-let x = 3
+let x 3
 cf:when
 cf:case [ x < 2 ] [ print "x is less than 2!" ]
 cf:case [ x < 4 ] [ print "x is less than 4!" ]
@@ -77,7 +77,7 @@ If no true case is found, and no `cf:else` given, `cf:when` will error with a su
 
 
 ```
-let x = 3
+let x 3
 print cf:select
 cf:case [ x < 2 ] [ "x is less than 2!" ]
 cf:case [ x < 4 ] [ "x is less than 4!" ]
@@ -97,7 +97,7 @@ If no true case is found, and no `cf:else` given, `cf:select` will error with a 
 `cf:match` is like `cf:when`, except that it applies the conditions in its cases to the given value. For instance:
 
 ```
-let x = 3
+let x 3
 cf:match x
 cf:case [ ? < 2 ] [ print "x is less than 2!" ]
 cf:case [ ? < 4 ] [ print "x is less than 4!" ]
@@ -125,7 +125,7 @@ If no matching case is found, `cf:match` will error with a suggestion for a fix.
 `cf:matching` is like `cf:match`, except that it reports the result of the matching case. `cf:matching` is to `cf:match` as `cf:select` is to `cf:when`. For instance:
 
 ```
-let x = 3
+let x 3
 print x cf:matching
 cf:case [ ? < 2 ] [ "x is less than 2!" ]
 cf:case [ ? < 4 ] [ "x is less than 4!" ]
@@ -133,11 +133,11 @@ cf:case [ ? < 6 ] [ "x is less than 6!" ]
 cf:else           [ "x is greater than or equal to 6!" ]
 ```
 
-`cf:matching` also applies the consequent of the matching case to the given value, just like `cf:match`:
 The above code will print out `x is less than 4!` since that's the first case with a true condition.
+`cf:matching` also applies the consequent of the matching case to the given value, just like `cf:match`:
 
 ```
-print cf:match one-of turtles
+print (one-of turtles) cf:matching
 cf:case [ [color] of ? = red  ] [ [ "I'm red!" ] of ? ]
 cf:case [ [color] of ? = blue ] [ [ "I'm blue!" ] of ? ]
 cf:else                         [ [ "I'm some other color!" ] of ? ]
@@ -154,9 +154,9 @@ If no matching case is found, `cf:matching` will error with a suggestion for a f
 Note that because the condition in a case is just a reporter task, you can check for many common conditions in a very concise manner. For instance, if we want to do something depending on the breed of a turtle, you can do:
 
 ```
-cf:match my-turtles
+cf:match my-turtle
 cf:case is-wolf? [ show "Growl!" ]
-cf:case is-sheep? [ show "Baah!" ]
+cf:case is-a-sheep? [ show "Baah!" ]
 cf:case is-dog? [ show "Bark!" ]
 cf:case is-cat? [ show "Meow!" ]
 cf:else [ show "I'm not sure what sound to make..." ]
@@ -166,9 +166,7 @@ cf:else [ show "I'm not sure what sound to make..." ]
 
 `cf:case-is <reporter task> <value> <reporter task or command task> <list of remaining cases>`
 
-`cf:case-is` allows you to write some common uses of `cf:case` in `cf:match` or `cf:matching` in a more concise, readable way. The given reporter task should be a relationship such `=`, `<`, or `member?`. `cf:case-is` then fills in the second argument of the task with the given value. This is much easier to understand in an example:
-
-This allows you to do things like the following:
+`cf:case-is` allows you to write some common uses of `cf:case` in `cf:match` or `cf:matching` in a more concise, readable way. The given reporter task should be a relationship such as `=`, `<`, or `member?`. `cf:case-is` then fills in the second argument of the task with the given value. This is much easier to understand in an example:
 
 ```
 let x 5
@@ -185,7 +183,7 @@ Thus, `cf:case-is` allows you to do something quite similar to `switch` in some 
 Internally, `cf:case-is` is equivalent to the following:
 
 ```
-cf:case [(runresult <reporter task> ? <value>)] <reporter task of command task> <list of remaining cases>
+cf:case [(runresult <reporter task> ? <value>)] <reporter task or command task> <list of remaining cases>
 ```
 
 
@@ -193,7 +191,7 @@ cf:case [(runresult <reporter task> ? <value>)] <reporter task of command task> 
 
 `cf:else <reporter task or command task>`
 
-`cf:else` creates a case where the condition is always true. Thus, it allows you to create a case that will be run if all the other cases fail. You should almost always finish up a chain of cases with `cf:else`. However, if you'd you prefer to error rather than have a default case, you can replace `cf:else` with `[]`, like so:
+`cf:else` creates a case where the condition is always true. Thus, it allows you to create a case that will be run if all the other cases fail. You should almost always finish up a chain of cases with `cf:else`. However, if you'd prefer to error rather than have a default case, you can replace `cf:else` with `[]`, like so:
 
 ```
 let x -5
