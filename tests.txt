@@ -1,0 +1,29 @@
+cf-when-takes-first-true
+  extensions [ cf ]
+  O> cf:when cf:case [ false ] [ crt 1 ] cf:case [ true ] [ crt 2 ] cf:case [ true ] [ crt 4 ] cf:else [ crt 8 ]
+  count turtles => 2
+
+cf-when-errors-on-no-match
+  extensions [ cf ]
+  O> cf:when cf:case [ false ] [ crt 1 ] [] => ERROR Extension exception: No true condition found. If you wish to do nothing instead of erroring, use `cf:else []`.
+
+cf-select-takes-first-true
+  extensions [ cf ]
+  cf:select cf:case [ false ] [ 1 ] cf:case [ true ] [ 2 ] cf:case [ true ] [ 3 ] cf:else 4 => 2
+
+cf-select-errors-on-no-match
+  extensions [ cf ]
+  cf:select cf:case [ false ] [ 1 ] [] => ERROR Extension exception: No true condition found. If you wish default to a value instead of erroring, use `cf:else [ <default-value> ]`.
+
+cf-match-passes-on-argument
+  extensions [ cf ]
+  O> cf:match 2 cf:case [ ? = 1 ] [ crt ? ] cf:case [ ? = 2 ] [ crt (? + 1) ] cf:else [ crt (? + 1000) ]
+  count turtles => 3
+
+cf-matching-passes-on-argument
+  extensions [ cf ]
+  (patch 0 0) cf:matching cf:case is-turtle? [ [ color ] of ? ] cf:case is-patch? [ [ pcolor ] of ? ] [] => 0
+
+case-is-works-with-common-relationships
+  extensions [ cf ]
+  5 cf:matching cf:case-is = 0 [ "zero" ]  cf:case-is < 3 [ "less than 3" ] cf:case-is member? [ 4 5 6 ] [ "member" ] [] => "member"
