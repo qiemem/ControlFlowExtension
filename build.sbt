@@ -1,3 +1,5 @@
+enablePlugins(org.nlogo.build.NetLogoExtension)
+
 scalaVersion := "2.11.7"
 
 scalaSource in Compile := baseDirectory.value / "src" / "main"
@@ -13,26 +15,40 @@ scalacOptions ++= Seq("-deprecation", "-unchecked", "-Xfatal-warnings",
 
 retrieveManaged := true
 
-libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo" % "6.0.0-PREVIEW" from
-    "https://s3.amazonaws.com/ccl-artifacts/NetLogo-6.0-constructionism-preview.jar"
-)
+netLogoClassManager := "org.nlogo.extensions.array.ArrayExtension"
+
+netLogoExtName :=    "cf"
+
+netLogoClassManager := "org.nlogo.extensions.cf.CFExtension"
+
+netLogoTarget :=
+  org.nlogo.build.NetLogoExtension.directoryTarget(baseDirectory.value)
+
+val netLogoJarURL =
+  Option(System.getProperty("netlogo.jar.url")).getOrElse("https://s3.amazonaws.com/ccl-artifacts/NetLogo-c210708.jar")
+
+val netLogoJarsOrDependencies = {
+  import java.io.File
+  import java.net.URI
+  val urlSegments = netLogoJarURL.split("/")
+  val lastSegment = urlSegments.last.replaceFirst("NetLogo", "NetLogo-tests")
+  val testsUrl = (urlSegments.dropRight(1) :+ lastSegment).mkString("/")
+  if (netLogoJarURL.startsWith("file:"))
+    Seq(unmanagedJars in Compile ++= Seq(
+      new File(new URI(netLogoJarURL)), new File(new URI(testsUrl))))
+  else
+    Seq(libraryDependencies ++= Seq(
+      "org.nlogo" % "NetLogo" % "6.0-M1-SNAPSHOT" from netLogoJarURL,
+      "org.nlogo" % "NetLogo-tests" % "6.0-M1-SNAPSHOT" % "test" from testsUrl))
+}
+
+netLogoJarsOrDependencies
 
 libraryDependencies ++= Seq(
-  "org.nlogo" % "NetLogo-tests" % "6.0.0-PREVIEW" from
-    "https://s3.amazonaws.com/ccl-artifacts/NetLogo-6.0-constructionism-preview.jar",
-  "org.scalatest" %% "scalatest" % "2.2.4" % "test",
+  "org.scalatest" %% "scalatest" % "2.2.1" % "test",
   "org.picocontainer" % "picocontainer" % "2.13.6" % "test",
   "org.ow2.asm" % "asm-all" % "5.0.3" % "test"
 )
-
-artifactName := { (_, _, _) => "cf.jar" }
-
-packageOptions +=
-  Package.ManifestAttributes(
-    ("Extension-Name", "cf"),
-    ("Class-Manager", "org.nlogo.extensions.cf.CFExtension"),
-    ("NetLogo-Extension-API-Version", "5.0"))
 
 packageBin in Compile := {
   val jar = (packageBin in Compile).value
