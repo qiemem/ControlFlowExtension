@@ -20,7 +20,7 @@ cf-match-passes-on-argument
   O> cf:match 2 cf:case [ ? = 1 ] [ crt ? ] cf:case [ ? = 2 ] [ crt (? + 1) ] cf:else [ crt (? + 1000) ]
   count turtles => 3
 
-cf-matching-passes-on-argument
+cf-matching-passes-on-argument_2D
   extensions [ cf ]
   (patch 0 0) cf:matching cf:case is-turtle? [ [ color ] of ? ] cf:case is-patch? [ [ pcolor ] of ? ] [] => 0
 
