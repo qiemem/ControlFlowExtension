@@ -24,26 +24,6 @@ netLogoClassManager := "org.nlogo.extensions.cf.CFExtension"
 netLogoTarget :=
   org.nlogo.build.NetLogoExtension.directoryTarget(baseDirectory.value)
 
-val netLogoJarURL =
-  Option(System.getProperty("netlogo.jar.url")).getOrElse("https://s3.amazonaws.com/ccl-artifacts/NetLogo-c210708.jar")
-
-val netLogoJarsOrDependencies = {
-  import java.io.File
-  import java.net.URI
-  val urlSegments = netLogoJarURL.split("/")
-  val lastSegment = urlSegments.last.replaceFirst("NetLogo", "NetLogo-tests")
-  val testsUrl = (urlSegments.dropRight(1) :+ lastSegment).mkString("/")
-  if (netLogoJarURL.startsWith("file:"))
-    Seq(unmanagedJars in Compile ++= Seq(
-      new File(new URI(netLogoJarURL)), new File(new URI(testsUrl))))
-  else
-    Seq(libraryDependencies ++= Seq(
-      "org.nlogo" % "NetLogo" % "6.0-M1-SNAPSHOT" from netLogoJarURL,
-      "org.nlogo" % "NetLogo-tests" % "6.0-M1-SNAPSHOT" % "test" from testsUrl))
-}
-
-netLogoJarsOrDependencies
-
 libraryDependencies ++= Seq(
   "org.scalatest" %% "scalatest" % "2.2.1" % "test",
   "org.picocontainer" % "picocontainer" % "2.13.6" % "test",
@@ -67,3 +47,6 @@ cleanFiles ++= {
   val cfDir = base / "extensions" / "cf"
   Seq(base / "cf.jar")
 }
+
+netLogoVersion := "6.0-M1"
+
