@@ -3,7 +3,7 @@ package org.nlogo.extensions.cf
 import org.nlogo.api.ReporterTask
 import org.nlogo.core.{LogoList, Let}
 import org.nlogo.api.{ Argument, Command, CommandTask, Context, ExtensionException, PrimitiveManager, DefaultClassManager, Reporter, TypeNames => ApiTypeNames }
-import org.nlogo.api.Syntax._
+import org.nlogo.core.Syntax._
 import org.nlogo.nvm
 
 object Caster {
@@ -45,7 +45,7 @@ trait Runner {
 }
 
 case object Case extends Reporter {
-  override def getSyntax = reporterSyntax(Array(ReporterTaskType, CommandTaskType | ReporterTaskType, ListType), ListType)
+  override def getSyntax = reporterSyntax(right = List(ReporterTaskType, CommandTaskType | ReporterTaskType, ListType), ret = ListType)
   override def report(args: Array[Argument], context: Context) =
     args(2).getList.fput(LogoList(args(0).getReporterTask, args(1).get))
 }
@@ -53,14 +53,14 @@ case object Case extends Reporter {
 case object Else extends Reporter {
   def trueTask(ctx: Context) = new RepTask(ctx, 0, (c, args) => Boolean.box(true))
 
-  override def getSyntax = reporterSyntax(Array(CommandTaskType | ReporterTaskType), ListType)
+  override def getSyntax = reporterSyntax(right = List(CommandTaskType | ReporterTaskType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) =
     LogoList(LogoList(trueTask(ctx), args(0).get))
 }
 
 case object CaseIs extends Reporter with Runner {
   override def getSyntax =
-    reporterSyntax(Array(ReporterTaskType, WildcardType, CommandTaskType | ReporterTaskType, ListType), ListType)
+    reporterSyntax(right = List(ReporterTaskType, WildcardType, CommandTaskType | ReporterTaskType, ListType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) = {
     args(3).getList fput LogoList(
       new RepTask(ctx, 1, (c, xs) => predicate(args(0).getReporterTask, c, xs(0), args(1).get)),
@@ -70,50 +70,50 @@ case object CaseIs extends Reporter with Runner {
 }
 
 case object Cond extends Command with Runner {
-  override def getSyntax = commandSyntax(Array(ListType))
+  override def getSyntax = commandSyntax(right = List(ListType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
     command(find(args(0).getList, ctx).getOrElse(notFoundCmd), ctx)
 }
 
 case object CondValue extends Reporter with Runner {
-  override def getSyntax = reporterSyntax(Array(ListType), WildcardType)
+  override def getSyntax = reporterSyntax(right = List(ListType), ret = WildcardType)
   override def report(args: Array[Argument], ctx: Context) =
     reporter(find(args(0).getList, ctx).getOrElse(notFoundRep), ctx)
 }
 
 case object Match extends Command with Runner {
-  override def getSyntax = commandSyntax(Array(WildcardType, ListType))
+  override def getSyntax = commandSyntax(right = List(WildcardType, ListType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
     command(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundCmd), ctx, args(0).get)
 }
 
 case object MatchValue extends Reporter with Runner {
-  override def getSyntax = reporterSyntax(WildcardType, Array(ListType), WildcardType,
+  override def getSyntax = reporterSyntax(left = WildcardType, right = List(ListType), ret = WildcardType,
     precedence = NormalPrecedence + 2, isRightAssociative = false)
   override def report(args: Array[Argument], ctx: Context): AnyRef =
     reporter(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundRep), ctx, args(0).get)
 }
 
 case object Apply extends Command {
-  override def getSyntax = commandSyntax(Array(CommandTaskType, ListType))
+  override def getSyntax = commandSyntax(right = List(CommandTaskType, ListType))
   override def perform(args: Array[Argument], context: Context) =
     args(0).getCommandTask.perform(context, args(1).getList.toArray)
 }
 
 case object ApplyValue extends Reporter {
-  override def getSyntax = reporterSyntax(Array(ReporterTaskType, ListType), WildcardType)
+  override def getSyntax = reporterSyntax(right = List(ReporterTaskType, ListType), ret = WildcardType)
   override def report(args: Array[Argument], context: Context): AnyRef =
     args(0).getReporterTask.report(context, args(1).getList.toArray)
 }
 
 case object Unpack extends Command {
-  override def getSyntax = commandSyntax(Array(ListType, CommandTaskType))
+  override def getSyntax = commandSyntax(right = List(ListType, CommandTaskType))
   override def perform(args: Array[Argument], context: Context) =
     args(1).getCommandTask.perform(context, args(0).getList.toArray)
 }
 
 case object UnpackValue extends Reporter {
-  override def getSyntax = reporterSyntax(Array(ListType, ReporterTaskType), WildcardType)
+  override def getSyntax = reporterSyntax(right = List(ListType, ReporterTaskType), ret = WildcardType)
   override def report(args: Array[Argument], context: Context): AnyRef =
     args(1).getReporterTask.report(context, args(0).getList.toArray)
 }
