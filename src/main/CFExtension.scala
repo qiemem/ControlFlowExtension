@@ -1,16 +1,15 @@
 package org.nlogo.extensions.cf
 
-import org.nlogo.api.ReporterTask
 import org.nlogo.core.{LogoList, Let}
-import org.nlogo.api.{ Argument, Command, CommandTask, Context, ExtensionException, PrimitiveManager, DefaultClassManager, Reporter, TypeNames => ApiTypeNames }
+import org.nlogo.api.{ AnonymousCommand, Argument, Command, Context, ExtensionException, PrimitiveManager, DefaultClassManager, Reporter, AnonymousReporter, TypeNames => ApiTypeNames }
 import org.nlogo.core.Syntax._
 import org.nlogo.nvm
 
 object Caster {
   type JBoolean = java.lang.Boolean
 
-  def toReporter(x: AnyRef): ReporterTask = cast(x, classOf[ReporterTask], ReporterType)
-  def toCommand(x: AnyRef): CommandTask = cast(x, classOf[CommandTask], CommandType)
+  def toReporter(x: AnyRef): AnonymousReporter = cast(x, classOf[AnonymousReporter], ReporterType)
+  def toCommand(x: AnyRef): AnonymousCommand = cast(x, classOf[AnonymousCommand], CommandType)
   def toBoolean(x: AnyRef): JBoolean = cast(x, classOf[JBoolean], BooleanType)
   def toList(x: AnyRef): LogoList = cast(x, classOf[LogoList], ListType)
 
@@ -23,7 +22,7 @@ object Caster {
 }
 
 class RepTask(ctx: Context, arity: Int, fn: (Context, Array[AnyRef]) => AnyRef)
-extends nvm.ReporterTask(null, Array.fill(arity){new Let}, List(), Array()) {
+extends nvm.AnonymousReporter(null, Array.fill(arity){new Let}, List(), Array()) {
   val ws = ctx.asInstanceOf[nvm.ExtensionContext].workspace
   override def report(ctx: Context, args: Array[AnyRef]): AnyRef = fn(ctx, args)
   override def report(ctx: nvm.Context, args: Array[AnyRef]): AnyRef = report(new nvm.ExtensionContext(ws, ctx), args)
@@ -47,7 +46,7 @@ trait Runner {
 case object Case extends Reporter {
   override def getSyntax = reporterSyntax(right = List(ReporterType, CommandType | ReporterType, ListType), ret = ListType)
   override def report(args: Array[Argument], context: Context) =
-    args(2).getList.fput(LogoList(args(0).getReporterTask, args(1).get))
+    args(2).getList.fput(LogoList(args(0).getReporter, args(1).get))
 }
 
 case object Else extends Reporter {
@@ -63,7 +62,7 @@ case object CaseIs extends Reporter with Runner {
     reporterSyntax(right = List(ReporterType, WildcardType, CommandType | ReporterType, ListType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) = {
     args(3).getList fput LogoList(
-      new RepTask(ctx, 1, (c, xs) => predicate(args(0).getReporterTask, c, xs(0), args(1).get)),
+      new RepTask(ctx, 1, (c, xs) => predicate(args(0).getReporter, c, xs(0), args(1).get)),
       args(2).get
     )
   }
@@ -97,25 +96,25 @@ case object MatchValue extends Reporter with Runner {
 case object Apply extends Command {
   override def getSyntax = commandSyntax(right = List(CommandType, ListType))
   override def perform(args: Array[Argument], context: Context) =
-    args(0).getCommandTask.perform(context, args(1).getList.toArray)
+    args(0).getCommand.perform(context, args(1).getList.toArray)
 }
 
 case object ApplyValue extends Reporter {
   override def getSyntax = reporterSyntax(right = List(ReporterType, ListType), ret = WildcardType)
   override def report(args: Array[Argument], context: Context): AnyRef =
-    args(0).getReporterTask.report(context, args(1).getList.toArray)
+    args(0).getReporter.report(context, args(1).getList.toArray)
 }
 
 case object Unpack extends Command {
   override def getSyntax = commandSyntax(right = List(ListType, CommandType))
   override def perform(args: Array[Argument], context: Context) =
-    args(1).getCommandTask.perform(context, args(0).getList.toArray)
+    args(1).getCommand.perform(context, args(0).getList.toArray)
 }
 
 case object UnpackValue extends Reporter {
   override def getSyntax = reporterSyntax(right = List(ListType, ReporterType), ret = WildcardType)
   override def report(args: Array[Argument], context: Context): AnyRef =
-    args(1).getReporterTask.report(context, args(0).getList.toArray)
+    args(1).getReporter.report(context, args(0).getList.toArray)
 }
 
 class CFExtension extends DefaultClassManager {
