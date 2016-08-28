@@ -17,12 +17,12 @@ cf-select-errors-on-no-match
 
 cf-match-passes-on-argument
   extensions [ cf ]
-  O> cf:match 2 cf:case [ ? = 1 ] [ crt ? ] cf:case [ ? = 2 ] [ crt (? + 1) ] cf:else [ crt (? + 1000) ]
+  O> cf:match 2 cf:case [ [x] -> x = 1 ] [ [x] -> crt x ] cf:case [ [x] -> x = 2 ] [ [x] -> crt (x + 1) ] cf:else [ [x] -> crt (x + 1000) ]
   count turtles => 3
 
 cf-matching-passes-on-argument_2D
   extensions [ cf ]
-  (patch 0 0) cf:matching cf:case is-turtle? [ [ color ] of ? ] cf:case is-patch? [ [ pcolor ] of ? ] [] => 0
+  (patch 0 0) cf:matching cf:case is-turtle? [ [the-turtle] -> [ color ] of the-turtle ] cf:case is-patch? [ [the-patch] -> [ pcolor ] of the-patch ] [] => 0
 
 case-is-works-with-common-relationships
   extensions [ cf ]
