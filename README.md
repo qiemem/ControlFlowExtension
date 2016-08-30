@@ -218,7 +218,7 @@ Thus, `cf:case-is` allows you to do something quite similar to `switch` in some 
 ### `cf:else`
 
 ```NetLogo
-cf:else command or reporter
+cf:else command/reporter
 ```
 
 
