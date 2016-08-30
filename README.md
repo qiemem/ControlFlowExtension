@@ -64,6 +64,10 @@ cf:else           [ print "x is the same as y!" ]
 
 ### `cf:when`
 
+```NetLogo
+cf:when list-of-cases
+```
+
 
 Runs the command task from the first case in the list with a true condition. For instance:
 
@@ -82,6 +86,10 @@ If no true case is found, and no `cf:else` given, `cf:when` will error with a su
 
 
 ### `cf:select`
+
+```NetLogo
+cf:select list-of-cases
+```
 
 
 Picks the first case in the list with a true condition and reports the result of its consequent. The consequents of the cases in a `cf:select` must be reporter tasks. Thus, `cf:select` is exactly like `cf:when`, except that it reports the value from the true case, rather than just running it. For example:
@@ -102,6 +110,10 @@ If no true case is found, and no `cf:else` given, `cf:select` will error with a 
 
 
 ### `cf:match`
+
+```NetLogo
+cf:match value list-of-cases
+```
 
 
 `cf:match` is like `cf:when`, except that it applies the conditions in its cases to the given value. For instance:
@@ -131,6 +143,10 @@ If no matching case is found, `cf:match` will error with a suggestion for a fix.
 
 ### `cf:matching`
 
+```NetLogo
+cf:matching value list-of-cases
+```
+
 
 `cf:matching` is like `cf:match`, except that it reports the result of the matching case. `cf:matching` is to `cf:match` as `cf:select` is to `cf:when`. For instance:
 
@@ -158,6 +174,10 @@ If no matching case is found, `cf:matching` will error with a suggestion for a f
 
 ### `cf:case`
 
+```NetLogo
+cf:case condition consequent list-of-remaining-cases
+```
+
 
 `cf:case` allows you to construct a list of cases that the other primitives will then pick from. It constructs a new case from the the two given tasks and adds it to the front of the list of remaining cases. Thus, you can chain it together with other instances of `cf:case` to create an arbitrarily long list of cases.
 
@@ -174,6 +194,10 @@ cf:else [ show "I'm not sure what sound to make..." ]
 
 
 ### `cf:case-is`
+
+```NetLogo
+cf:case-is relationship consequent list-of-remaining-cases
+```
 
 
 `cf:case-is` allows you to write some common uses of `cf:case` in `cf:match` or `cf:matching` in a more concise, readable way. The given reporter should be a relationship such as `=`, `<`, or `member?`. `cf:case-is` then fills in the second argument of the reporter with the given value. This is much easier to understand in an example:
@@ -192,6 +216,10 @@ Thus, `cf:case-is` allows you to do something quite similar to `switch` in some 
 
 
 ### `cf:else`
+
+```NetLogo
+cf:else command or reporter
+```
 
 
 `cf:else` creates a case where the condition is always true. Thus, it allows you to create a case that will be run if all the other cases fail. You should almost always finish up a chain of cases with `cf:else`. However, if you'd prefer to error rather than have a default case, you can replace `cf:else` with `[]`, like so:
