@@ -1,7 +1,7 @@
 enablePlugins(org.nlogo.build.NetLogoExtension)
 enablePlugins(org.nlogo.build.ExtensionDocumentationPlugin)
 
-scalaVersion := "2.11.7"
+scalaVersion := "2.12.0"
 
 scalaSource in Compile := baseDirectory.value / "src" / "main"
 
@@ -26,7 +26,7 @@ netLogoTarget :=
   org.nlogo.build.NetLogoExtension.directoryTarget(baseDirectory.value)
 
 libraryDependencies ++= Seq(
-  "org.scalatest" %% "scalatest" % "2.2.1" % "test",
+  "org.scalatest" %% "scalatest" % "3.0.0" % "test",
   "org.picocontainer" % "picocontainer" % "2.13.6" % "test",
   "org.ow2.asm" % "asm-all" % "5.0.3" % "test"
 )
