@@ -119,8 +119,8 @@ cf:match value list-of-cases
 `cf:match` is like `cf:when`, except that it applies the conditions in its cases to the given value. For instance:
 
 ```NetLogo
-ask patch 0 0 [ set color red ]
-cf:match ([ color ] of patch 0 0)
+ask patch 0 0 [ set pcolor red ]
+cf:match ([ pcolor ] of patch 0 0)
 cf:case [ [c] -> c = green ] [ print "The center patch is green!" ]
 cf:case [ [c] -> c = red  ] [ print "The center patch is red!" ]
 cf:case [ [c] -> c = blue  ] [ print "The center patch is blue!" ]
