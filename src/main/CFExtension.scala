@@ -24,7 +24,7 @@ object Caster {
 class RepTask(ctx: Context, arity: Int, fn: (Context, Array[AnyRef]) => AnyRef)
 extends nvm.AnonymousReporter(
     new nvm.Reporter{override def report(ctx: nvm.Context): AnyRef = null},
-    Array.fill(arity){new Let}, List(), Array()) {
+    Array.fill(arity){new Let}, new nvm.Binding(), Array.empty[AnyRef]) {
 
   val ws = ctx.asInstanceOf[nvm.ExtensionContext].workspace
   override def report(ctx: Context, args: Array[AnyRef]): AnyRef = fn(ctx, args)
