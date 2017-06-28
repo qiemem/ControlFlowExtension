@@ -1,8 +1,8 @@
 package org.nlogo.extensions.cf
 
-import org.nlogo.core.{LogoList, Let}
-import org.nlogo.api.{ AnonymousCommand, Argument, Command, Context, ExtensionException, PrimitiveManager, DefaultClassManager, Reporter, AnonymousReporter, TypeNames => ApiTypeNames }
+import org.nlogo.api.{AnonymousCommand, AnonymousReporter, Argument, Command, Context, DefaultClassManager, ExtensionException, PrimitiveManager, Reporter, TypeNames => ApiTypeNames}
 import org.nlogo.core.Syntax._
+import org.nlogo.core.{LogoList, Syntax}
 import org.nlogo.nvm
 
 object Caster {
@@ -21,26 +21,45 @@ object Caster {
         "Expected " + ApiTypeNames.aName(typeNum) + " but got the " + ApiTypeNames.name(x) + " " + x + " instead.")
 }
 
-class RepTask(ctx: Context, arity: Int, fn: (Context, Array[AnyRef]) => AnyRef)
-extends nvm.AnonymousReporter(
-    new nvm.Reporter{override def report(ctx: nvm.Context): AnyRef = null},
-    Array.fill(arity){new Let}, new nvm.Binding(), Array.empty[AnyRef], Seq()) {
+case class RepTask(arity: Int, fn: (Context, Array[AnyRef]) => AnyRef, source: String) extends AnonymousReporter {
+  override def report(c: Context, args: Array[AnyRef]): AnyRef = fn(c, args)
 
-  val ws = ctx.asInstanceOf[nvm.ExtensionContext].workspace
-  override def report(ctx: Context, args: Array[AnyRef]): AnyRef = fn(ctx, args)
-  override def report(ctx: nvm.Context, args: Array[AnyRef]): AnyRef = report(new nvm.ExtensionContext(ws, ctx), args)
+  override val syntax: Syntax = Syntax.reporterSyntax(
+    ret = Syntax.WildcardType,
+    defaultOption = Some(arity),
+    minimumOption = Some(arity),
+    right = nvm.AnonymousProcedure.rightArgs
+  )
 }
 
 trait Runner {
   import Caster._
-  def predicate(task: AnyRef, context: Context, args: AnyRef*): JBoolean = toBoolean(reporter(task, context, args: _*))
-  def reporter(task: AnyRef, context: Context, args: AnyRef*): AnyRef = toReporter(task).report(context, args.toArray)
-  def command(task: AnyRef, context: Context, args: AnyRef*): Unit = toCommand(task).perform(context, args.toArray)
-  def find(list: LogoList, context: Context, predArgs: AnyRef*): Option[AnyRef] =
-    list.toVector.map(l => Caster.toList(l).toVector).find(l => predicate(l.head, context, predArgs: _*)).map(_.last)
+  def predicate(task: AnyRef, context: Context, args: Array[AnyRef]): JBoolean =
+    toBoolean(reporter(task, context, args))
+
+  def reporter(task: AnyRef, context: Context): AnyRef =
+    reporter(task, context, Array.empty[AnyRef])
+  def reporter(task: AnyRef, context: Context, args: Array[AnyRef]): AnyRef =
+    toReporter(task).report(context, args)
+
+  def command(task: AnyRef, context: Context): Unit =
+    command(task, context, Array.empty[AnyRef])
+  def command(task: AnyRef, context: Context, args: Array[AnyRef]): Unit =
+    toCommand(task).perform(context, args)
+
+  def find(list: LogoList, context: Context): Option[AnyRef] =
+    find(list, context, Array.empty[AnyRef])
+  def find(list: LogoList, context: Context, predArgs: Array[AnyRef]): Option[AnyRef] =
+    list.find { l =>
+      predicate(Caster.toList(l)(0), context, predArgs)
+    }.map {
+      case l: LogoList => l(l.size - 1)
+    }
+
   def notFoundRep = throw new ExtensionException(
     "No true condition found. If you wish default to a value instead of erroring, use `cf:else [ <default-value> ]`."
   )
+
   def notFoundCmd = throw new ExtensionException(
     "No true condition found. If you wish to do nothing instead of erroring, use `cf:else []`."
   )
@@ -53,11 +72,11 @@ case object Case extends Reporter {
 }
 
 case object Else extends Reporter {
-  def trueTask(ctx: Context) = new RepTask(ctx, 0, (c, args) => Boolean.box(true))
+  val trueTask = RepTask(0, (_, _) => Boolean.box(true), "[ -> true ]")
 
   override def getSyntax = reporterSyntax(right = List(CommandType | ReporterType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) =
-    LogoList(LogoList(trueTask(ctx), args(0).get))
+    LogoList(LogoList(trueTask, args(0).get))
 }
 
 case object CaseIs extends Reporter with Runner {
@@ -65,7 +84,10 @@ case object CaseIs extends Reporter with Runner {
     reporterSyntax(right = List(ReporterType, WildcardType, CommandType | ReporterType, ListType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) = {
     args(3).getList fput LogoList(
-      new RepTask(ctx, 1, (c, xs) => predicate(args(0).getReporter, c, xs(0), args(1).get)),
+      RepTask(1,
+        (c: Context, xs: Array[AnyRef]) =>
+          predicate(args(0).getReporter, c, Array(xs(0), args(1).get)),
+        "cf:case-is"),
       args(2).get
     )
   }
@@ -85,15 +107,19 @@ case object CondValue extends Reporter with Runner {
 
 case object Match extends Command with Runner {
   override def getSyntax = commandSyntax(right = List(WildcardType, ListType))
-  override def perform(args: Array[Argument], ctx: Context): Unit =
-    command(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundCmd), ctx, args(0).get)
+  override def perform(args: Array[Argument], ctx: Context): Unit = {
+    val actuals = Array(args(0).get)
+    command(find(args(1).getList, ctx, actuals).getOrElse(notFoundCmd), ctx, actuals)
+  }
 }
 
 case object MatchValue extends Reporter with Runner {
   override def getSyntax = reporterSyntax(left = WildcardType, right = List(ListType), ret = WildcardType,
     precedence = NormalPrecedence + 2, isRightAssociative = false)
-  override def report(args: Array[Argument], ctx: Context): AnyRef =
-    reporter(find(args(1).getList, ctx, args(0).get).getOrElse(notFoundRep), ctx, args(0).get)
+  override def report(args: Array[Argument], ctx: Context): AnyRef = {
+    val actuals = Array(args(0).get)
+    reporter(find(args(1).getList, ctx, actuals).getOrElse(notFoundRep), ctx, actuals)
+  }
 }
 
 case object Apply extends Command {
