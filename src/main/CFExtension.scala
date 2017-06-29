@@ -1,8 +1,8 @@
 package org.nlogo.extensions.cf
 
-import org.nlogo.api.{AnonymousCommand, AnonymousReporter, Argument, Command, Context, DefaultClassManager, ExtensionException, PrimitiveManager, Reporter, TypeNames => ApiTypeNames}
+import org.nlogo.api.{AnonymousCommand, AnonymousProcedure, AnonymousReporter, Argument, Command, Context, DefaultClassManager, ExtensionException, PrimitiveManager, Reporter, TypeNames => ApiTypeNames}
 import org.nlogo.core.Syntax._
-import org.nlogo.core.{LogoList, Syntax}
+import org.nlogo.core.{ExtensionObject, LogoList, Syntax}
 import org.nlogo.nvm
 
 object Caster {
@@ -12,6 +12,16 @@ object Caster {
   def toCommand(x: AnyRef): AnonymousCommand = cast(x, classOf[AnonymousCommand], CommandType)
   def toBoolean(x: AnyRef): JBoolean = cast(x, classOf[JBoolean], BooleanType)
   def toList(x: AnyRef): LogoList = cast(x, classOf[LogoList], ListType)
+  def toReporterCase(x: AnyRef): ReporterCase = x match {
+    case c: ReporterCase => c
+    case _ => throw new ExtensionException(
+      s"Expected a case pair but got the ${ApiTypeNames.name(x)} $x instead")
+  }
+  def toCommandCase(x: AnyRef): CommandCase = x match {
+    case c: CommandCase => c
+    case _ => throw new ExtensionException(
+      s"Expected a case pair but got the ${ApiTypeNames.name(x)} $x instead")
+  }
 
   def cast[T](x: AnyRef, t: Class[T], typeNum: Int): T =
     if (t.isInstance(x))
@@ -65,61 +75,123 @@ trait Runner {
   )
 }
 
-case object Case extends Reporter {
-  override def getSyntax = reporterSyntax(right = List(ReporterType, CommandType | ReporterType, ListType), ret = ListType)
-  override def report(args: Array[Argument], context: Context) =
-    args(2).getList.fput(LogoList(args(0).getReporter, args(1).get))
+sealed trait Case[R] extends ExtensionObject {
+  def apply(ctx: Context, args: Array[AnyRef]): R
+  def apply(ctx: Context): R = apply(ctx, Array.empty[AnyRef])
+
+  override val getExtensionName: String = "cf"
+
+  override def recursivelyEqual(obj: AnyRef): Boolean = this == obj
 }
 
-case object Else extends Reporter {
+sealed trait CommandCase extends Case[Unit] {
+  override val getNLTypeName = "command-case"
+}
+
+case class CommandCasePair(condition: AnonymousReporter,
+                           body: AnonymousCommand,
+                           rest: CommandCase) extends CommandCase {
+  override def apply(ctx: Context, args: Array[AnyRef]): Unit =
+    if (Caster.toBoolean(condition.report(ctx, args)))
+      body.perform(ctx, args)
+    else
+      rest(ctx, args)
+
+  override def dump(readable: Boolean, exporting: Boolean, reference: Boolean): String =
+    s"$condition $body ${rest.dump(readable, exporting, reference)}"
+}
+
+case class CommandElse(body: AnonymousCommand) extends CommandCase {
+  override def apply(ctx: Context, args: Array[AnyRef]): Unit = body.perform(ctx, args)
+  override def dump(readable: Boolean, exporting: Boolean, reference: Boolean): String =
+    s"else $body"
+}
+
+sealed trait ReporterCase extends Case[AnyRef] {
+  override val getNLTypeName = "reporter-case"
+}
+
+case class ReporterCasePair(condition: AnonymousReporter,
+                        body: AnonymousReporter,
+                        rest: ReporterCase) extends ReporterCase {
+  override def apply(ctx: Context, args: Array[AnyRef]): AnyRef =
+    if (Caster.toBoolean(condition.report(ctx, args)))
+      body.report(ctx, args)
+    else
+      rest(ctx, args)
+
+  override def dump(readable: Boolean, exporting: Boolean, reference: Boolean): String =
+    s"$condition $body ${rest.dump(readable, exporting, reference)}"
+}
+
+case class ReporterElse(body: AnonymousReporter) extends ReporterCase {
+  override def apply(ctx: Context, args: Array[AnyRef]): AnyRef = body.report(ctx, args)
+  override def dump(readable: Boolean, exporting: Boolean, reference: Boolean): String =
+    s"else $body"
+}
+
+case object CasePrim extends Reporter {
+  override def getSyntax = reporterSyntax(
+    right = List(ReporterType, CommandType | ReporterType, WildcardType),
+    ret = WildcardType
+  )
+  override def report(args: Array[Argument], context: Context) = args(2).get match {
+    case c: CommandCase => CommandCasePair(args(0).getReporter, args(1).getCommand, c)
+    case r: ReporterCase => ReporterCasePair(args(0).getReporter, args(1).getReporter, r)
+  }
+}
+
+case object ElsePrim extends Reporter {
   val trueTask = RepTask(0, (_, _) => Boolean.box(true), "[ -> true ]")
 
-  override def getSyntax = reporterSyntax(right = List(CommandType | ReporterType), ret = ListType)
-  override def report(args: Array[Argument], ctx: Context) =
-    LogoList(LogoList(trueTask, args(0).get))
+  override def getSyntax = reporterSyntax(
+    right = List(CommandType | ReporterType),
+    ret = WildcardType
+  )
+  override def report(args: Array[Argument], ctx: Context) = args(0).get match {
+    case c: AnonymousCommand => CommandElse(c)
+    case r: AnonymousReporter => ReporterElse(r)
+  }
 }
 
 case object CaseIs extends Reporter with Runner {
   override def getSyntax =
     reporterSyntax(right = List(ReporterType, WildcardType, CommandType | ReporterType, ListType), ret = ListType)
   override def report(args: Array[Argument], ctx: Context) = {
-    args(3).getList fput LogoList(
-      RepTask(1,
-        (c: Context, xs: Array[AnyRef]) =>
-          predicate(args(0).getReporter, c, Array(xs(0), args(1).get)),
-        "cf:case-is"),
-      args(2).get
+    val condition = RepTask(1,
+      (c: Context, xs: Array[AnyRef]) => predicate(args(0).getReporter, c, Array(xs(0), args(1).get)),
+      "cf:case-is"
     )
+    args(3).get match {
+      case c: CommandCase => CommandCasePair(condition, args(2).getCommand, c)
+      case r: ReporterCase => ReporterCasePair(condition, args(2).getReporter, r)
+    }
   }
 }
 
 case object Cond extends Command with Runner {
-  override def getSyntax = commandSyntax(right = List(ListType))
+  override def getSyntax = commandSyntax(right = List(WildcardType))
   override def perform(args: Array[Argument], ctx: Context): Unit =
-    command(find(args(0).getList, ctx).getOrElse(notFoundCmd), ctx)
+    Caster.toCommandCase(args(0).get)(ctx)
 }
 
 case object CondValue extends Reporter with Runner {
-  override def getSyntax = reporterSyntax(right = List(ListType), ret = WildcardType)
+  override def getSyntax = reporterSyntax(right = List(WildcardType), ret = WildcardType)
   override def report(args: Array[Argument], ctx: Context) =
-    reporter(find(args(0).getList, ctx).getOrElse(notFoundRep), ctx)
+    Caster.toReporterCase(args(0).get)(ctx)
 }
 
 case object Match extends Command with Runner {
-  override def getSyntax = commandSyntax(right = List(WildcardType, ListType))
-  override def perform(args: Array[Argument], ctx: Context): Unit = {
-    val actuals = Array(args(0).get)
-    command(find(args(1).getList, ctx, actuals).getOrElse(notFoundCmd), ctx, actuals)
-  }
+  override def getSyntax = commandSyntax(right = List(WildcardType, WildcardType))
+  override def perform(args: Array[Argument], ctx: Context): Unit =
+    Caster.toCommandCase(args(1).get)(ctx, Array(args(0).get))
 }
 
 case object MatchValue extends Reporter with Runner {
-  override def getSyntax = reporterSyntax(left = WildcardType, right = List(ListType), ret = WildcardType,
+  override def getSyntax = reporterSyntax(left = WildcardType, right = List(WildcardType), ret = WildcardType,
     precedence = NormalPrecedence + 2, isRightAssociative = false)
-  override def report(args: Array[Argument], ctx: Context): AnyRef = {
-    val actuals = Array(args(0).get)
-    reporter(find(args(1).getList, ctx, actuals).getOrElse(notFoundRep), ctx, actuals)
-  }
+  override def report(args: Array[Argument], ctx: Context): AnyRef =
+    Caster.toReporterCase(args(1).get)(ctx, Array(args(0).get))
 }
 
 case object Apply extends Command {
@@ -146,11 +218,43 @@ case object UnpackValue extends Reporter {
     args(1).getReporter.report(context, args(0).getList.toArray)
 }
 
+case object RawCond extends Command {
+  override def getSyntax = commandSyntax(
+    right = List(Syntax.ReporterType | Syntax.CommandType | Syntax.RepeatableType)
+  )
+  override def perform(args: Array[Argument], context: Context): Unit = {
+    var i = 0
+    while (i < args.length) {
+     if (Caster.toBoolean(args(i).getReporter.report(context, Array.empty[AnyRef]))) {
+       args(i + 1).getCommand.perform(context, Array.empty[AnyRef])
+       return
+     }
+      i += 2
+    }
+  }
+}
+
+case object RawCond2 extends Command {
+  override def getSyntax = commandSyntax(
+    right = List(Syntax.BooleanType | Syntax.CommandType | Syntax.RepeatableType)
+  )
+  override def perform(args: Array[Argument], context: Context): Unit = {
+    var i = 0
+    while (i < args.length) {
+      if (args(i).getBooleanValue) {
+        args(i + 1).getCommand.perform(context, Array.empty[AnyRef])
+        return
+      }
+      i += 2
+    }
+  }
+}
+
 class CFExtension extends DefaultClassManager {
   override def load(primManager: PrimitiveManager) = {
     val add = primManager.addPrimitive _
-    add("case", Case)
-    add("else", Else)
+    add("case", CasePrim)
+    add("else", ElsePrim)
     add("case-is", CaseIs)
     add("when", Cond)
     add("select", CondValue)
@@ -161,5 +265,8 @@ class CFExtension extends DefaultClassManager {
     add("apply-value", ApplyValue)
     add("unpack", Unpack)
     add("unpack-value", UnpackValue)
+
+    add("cond", RawCond)
+    add("cond2", RawCond2)
   }
 }
