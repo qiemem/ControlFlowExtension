@@ -1,6 +1,6 @@
 package org.nlogo.extensions.cf
 
-import org.nlogo.api.{AnonymousCommand, AnonymousProcedure, AnonymousReporter, Argument, Command, Context, DefaultClassManager, ExtensionException, PrimitiveManager, Reporter, TypeNames => ApiTypeNames}
+import org.nlogo.api.{AnonymousCommand, AnonymousProcedure, AnonymousReporter, Argument, Command, Context, DefaultClassManager, Equality, ExtensionException, PrimitiveManager, Reporter, TypeNames => ApiTypeNames}
 import org.nlogo.core.Syntax._
 import org.nlogo.core.{ExtensionObject, LogoList, Syntax}
 import org.nlogo.nvm
@@ -218,7 +218,7 @@ case object UnpackValue extends Reporter {
     args(1).getReporter.report(context, args(0).getList.toArray)
 }
 
-case object RawCond extends Command {
+case object SimpleCond extends Command {
   override def getSyntax = commandSyntax(
     right = List(Syntax.ReporterType | Syntax.CommandType | Syntax.RepeatableType)
   )
@@ -234,19 +234,109 @@ case object RawCond extends Command {
   }
 }
 
-case object RawCond2 extends Command {
+case object SimpleCondValue extends Reporter {
+  override def getSyntax = reporterSyntax(
+    right = List(Syntax.ReporterType | Syntax.RepeatableType),
+    ret = WildcardType
+  )
+  override def report(args: Array[Argument], context: Context): AnyRef = {
+    var i = 0
+    while (i < args.length) {
+      if (Caster.toBoolean(args(i).getReporter.report(context, Array.empty[AnyRef]))) {
+        return args(i + 1).getReporter.report(context, Array.empty[AnyRef])
+      }
+      i += 2
+    }
+    throw new ExtensionException("No true condition found.")
+  }
+}
+
+case object SimpleMatch extends Command {
   override def getSyntax = commandSyntax(
-    right = List(Syntax.BooleanType | Syntax.CommandType | Syntax.RepeatableType)
+    right = List(
+      WildcardType,
+      Syntax.WildcardType | Syntax.CommandType | Syntax.RepeatableType
+    )
+  )
+  override def perform(args: Array[Argument], context: Context): Unit = {
+    val obj = args(0).get
+    var i = 1
+    while (i < args.length) {
+      if (Equality.equals(obj, args(i).get)) {
+        args(i + 1).getCommand.perform(context, Array(obj))
+        return
+      }
+      i += 2
+    }
+  }
+}
+
+case object SimpleMatchValue extends Reporter {
+  override def getSyntax = reporterSyntax(
+    right = List(
+      WildcardType,
+      Syntax.ReporterType | Syntax.WildcardType | Syntax.RepeatableType
+    ),
+    ret = WildcardType
+  )
+  override def report(args: Array[Argument], context: Context): AnyRef = {
+    val obj = args(0).get
+    var i = 1
+    while (i < args.length) {
+      if (Equality.equals(obj, args(i).get)) {
+        return args(i + 1).getReporter.report(context, Array(obj))
+      }
+      i += 2
+    }
+    throw new ExtensionException("No match found.")
+  }
+}
+
+case object SimplerCond extends Command {
+  override def getSyntax = commandSyntax(
+    right = List(
+      Syntax.BooleanType,
+      Syntax.BooleanType | Syntax.CommandType | Syntax.RepeatableType,
+      Syntax.CommandType
+    ),
+    defaultOption = Some(3),
+    minimumOption = Some(2)
   )
   override def perform(args: Array[Argument], context: Context): Unit = {
     var i = 0
-    while (i < args.length) {
+    while (i < args.length - 1) {
       if (args(i).getBooleanValue) {
         args(i + 1).getCommand.perform(context, Array.empty[AnyRef])
         return
       }
       i += 2
     }
+    if (i < args.length) args.last.getCommand.perform(context, Array.empty[AnyRef])
+  }
+}
+
+case object SimplerCondValue extends Reporter {
+  override def getSyntax = reporterSyntax(
+    right = List(
+      Syntax.BooleanType,
+      Syntax.BooleanType | Syntax.ReporterType | Syntax.RepeatableType,
+      Syntax.ReporterType,
+      Syntax.ReporterType
+    ),
+    defaultOption = Some(3),
+    minimumOption = Some(3),
+    ret = WildcardType
+  )
+
+  override def report(args: Array[Argument], context: Context): AnyRef = {
+    var i = 0
+    while (i < args.length - 1) {
+      if (args(i).getBooleanValue) {
+        return args(i + 1).getReporter.report(context, Array.empty[AnyRef])
+      }
+      i += 2
+    }
+    args.last.getReporter.report(context, Array.empty[AnyRef])
   }
 }
 
@@ -266,7 +356,12 @@ class CFExtension extends DefaultClassManager {
     add("unpack", Unpack)
     add("unpack-value", UnpackValue)
 
-    add("cond", RawCond)
-    add("cond2", RawCond2)
+    add("simple-when", SimpleCond)
+    add("simple-when-value", SimpleCondValue)
+    add("simple-match", SimpleMatch)
+    add("simple-match-value", SimpleMatchValue)
+
+    add("simpler-when", SimplerCond)
+    add("simpler-when-value", SimplerCondValue)
   }
 }
