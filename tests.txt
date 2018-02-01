@@ -1,29 +1,38 @@
-cf-when-takes-first-true
+cf-ifelse-takes-first-true
   extensions [ cf ]
-  O> cf:when cf:case [ false ] [ crt 1 ] cf:case [ true ] [ crt 2 ] cf:case [ true ] [ crt 4 ] cf:else [ crt 8 ]
+  O> (cf:ifelse false [ crt 1 ] true [ crt 2 ] true [ crt 4 ] [ crt 8 ])
   count turtles => 2
 
-cf-when-errors-on-no-match
+cf-ifelse-falls-through-to-else-block
   extensions [ cf ]
-  O> cf:when cf:case [ false ] [ crt 1 ] [] => ERROR Extension exception: No true condition found. If you wish to do nothing instead of erroring, use `cf:else []`.
+  O> (cf:ifelse false [ crt 1 ] false [ crt 2 ] [ crt 4 ])
+  count turtles => 4
 
-cf-select-takes-first-true
+cf-ifelse-optional-else
   extensions [ cf ]
-  cf:select cf:case [ false ] [ 1 ] cf:case [ true ] [ 2 ] cf:case [ true ] [ 3 ] cf:else [ 4 ] => 2
+  O> (cf:ifelse false [ crt 1 ] false [ crt 2 ])
+  count turtles => 0
 
-cf-select-errors-on-no-match
+cf-ifelse-gives-type-errors-in-variadic-position
   extensions [ cf ]
-  cf:select cf:case [ false ] [ 1 ] [] => ERROR Extension exception: No true condition found. If you wish default to a value instead of erroring, use `cf:else [ <default-value> ]`.
+  O> (cf:ifelse false [ ] false [ ] [] [] []) => ERROR Extension exception: Expected this input to be a TRUE/FALSE but got the anonymous command (anonymous command: [ ]) instead.
 
-cf-match-passes-on-argument
+cf-ifelse-value-takes-first-true
   extensions [ cf ]
-  O> cf:match 2 cf:case [ [x] -> x = 1 ] [ [x] -> crt x ] cf:case [ [x] -> x = 2 ] [ [x] -> crt (x + 1) ] cf:else [ [x] -> crt (x + 1000) ]
-  count turtles => 3
+  (cf:ifelse-value false [ 1 ] true [ 2 ] true [ 4 ] [ 8 ]) => 2
 
-cf-matching-passes-on-argument_2D
+cf-ifelse-value-falls-through-to-else-block
   extensions [ cf ]
-  (patch 0 0) cf:matching cf:case is-turtle? [ [the-turtle] -> [ color ] of the-turtle ] cf:case is-patch? [ [the-patch] -> [ pcolor ] of the-patch ] cf:else [0] => 0
+  (cf:ifelse-value false [ 1 ] false [ 2 ] [ 4 ]) => 4
 
-case-is-works-with-common-relationships
+cf-ifelse-value-requires-else
   extensions [ cf ]
-  5 cf:matching cf:case-is = 0 [ "zero" ]  cf:case-is < 3 [ "less than 3" ] cf:case-is member? [ 4 5 6 ] [ "member" ] cf:else [0] => "member"
+  O> __ignore (cf:ifelse-value false [ 1 ] false [ 2 ]) => COMPILER ERROR CF:IFELSE-VALUE expected this input to be an anonymous reporter, but got a TRUE/FALSE instead
+
+cf-ifelse-value-associates-smartly
+  extensions [ cf ]
+  (cf:ifelse-value 0 > 1 [ false ] 0 < 1 [ true ] [ nobody ]) => true
+
+cf-ifelse-value-gives-type-errors-in-variadic-position
+  extensions [ cf ]
+  O> __ignore (cf:ifelse-value false [ 0 ] false [ 1 ] [ 3 ] [ 4 ] [ 5 ]) => ERROR Extension exception: Expected this input to be a TRUE/FALSE but got the anonymous reporter (anonymous reporter: [ 3 ]) instead.
