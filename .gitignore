@@ -3,3 +3,4 @@ lib_managed
 project/target
 target
 extensions
+.bundledFiles
