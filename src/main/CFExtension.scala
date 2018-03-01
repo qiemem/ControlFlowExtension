@@ -1,6 +1,6 @@
 package org.nlogo.extensions.cf
 
-import org.nlogo.api.{Argument, Command, Context, DefaultClassManager, PrimitiveManager, Reporter}
+import org.nlogo.api.{Argument, Command, Context, DefaultClassManager, ExtensionException, PrimitiveManager, Reporter}
 import org.nlogo.core.Syntax
 import org.nlogo.core.Syntax._
 
@@ -43,9 +43,8 @@ case object IfElseValue extends Reporter {
   override def getSyntax: Syntax = reporterSyntax(
     right = List(
       BooleanType,
-      BooleanType | ReporterType | RepeatableType,
       ReporterType,
-      ReporterType
+      BooleanType | ReporterType | RepeatableType
     ),
     defaultOption = Some(3),
     precedence = NormalPrecedence - 7,
@@ -60,7 +59,10 @@ case object IfElseValue extends Reporter {
       }
       i += 2
     }
-    args.last.getReporter.report(context, Array.empty[AnyRef])
+    if (i < args.length)
+      args.last.getReporter.report(context, Array.empty[AnyRef])
+    else
+      throw new ExtensionException("CF:IFELSE-VALUE found no true conditions and no else branch. If you don't wish to error when no conditions are true, add a final else branch.")
   }
 }
 
